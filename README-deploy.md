@@ -1,22 +1,45 @@
-# Deployment (Docker Compose)
+# OpenCourt Docker Deployment
 
-This project includes Docker configuration to run the backend and database locally using Docker Compose.
+This project uses Docker Compose to run three containerized services:
+- Frontend (React/Vite app served by nginx)
+- Backend (Node.js/Express API)
+- Database (MySQL)
 
 ## Files of interest
 
-- `docker-compose.yml` - builds and runs the `backend` and `db` services locally
-- `src/server/Dockerfile` - Node/Express backend image
-- `src/database/Dockerfile` - MySQL image that copies the SQL init scripts
-- `template.env` - template for environment variables (copy to `.env` at repo root)
+```
+docker-compose.yml              # Main compose configuration for all services
+src/
+  frontend/opencourt/
+    Dockerfile                  # Multi-stage build for React app + nginx
+    nginx.conf                  # Nginx config with API proxy rules
+  server/
+    Dockerfile                  # Node.js backend image
+  database/
+    Dockerfile                  # MySQL image with init scripts
+template.env                    # Template for environment variables
+```
 
-## Quick start on a VM
+## Prerequisites
 
-1. Install Docker and Docker Compose on the VM
-2. Clone this repository and cd into the project root
-3. Create a `.env` from the provided `template.env` and edit values:
+1. Docker Engine installed
+2. Docker Compose v2 installed
+3. Git (to clone the repository)
 
-Example `.env` (do NOT commit this file if it contains secrets):
+## Deployment Steps
 
+1. Clone and enter the repository:
+```bash
+git clone https://github.com/HumaGitGud/OpenCourt.git
+cd OpenCourt
+```
+
+2. Create and configure environment file:
+```bash
+cp template.env .env
+```
+
+Edit `.env` with your database credentials. Example content:
 ```
 DB_HOST=db
 DB_USER=opencourt_user
@@ -25,38 +48,89 @@ DB_NAME=opencourt
 DB_PORT=3306
 ```
 
-Note: `DB_HOST` is used by apps outside Docker; inside the compose network the backend connects to the service name `db` (docker-compose sets `DB_HOST=db` for the backend automatically).
+Note: Inside Docker Compose, services can reach each other by service name. The backend automatically uses `db` as the database host.
 
-4. Make the deploy script executable and run it:
-
+3. Make the deployment script executable:
 ```bash
-chmod +x deploy.sh
+chmod +x ./deploy.sh
+```
+
+4. Build and start all services:
+```bash
 ./deploy.sh
 ```
 
-5. Verify services
+The script runs `docker-compose up --build -d` to build fresh images and start containers in detached mode.
 
-- Backend: http://<vm-ip>:3000
-- MySQL: connect to <vm-ip>:<DB_PORT>
+## Accessing the Application
+
+Once deployed, the services are available at:
+
+- Frontend (Web UI): `http://<vm-ip>:5173`
+- Backend API: `http://<vm-ip>:3000`
+- Database: `<vm-ip>:<DB_PORT>` (from template.env)
+
+The frontend nginx server proxies API requests to the backend, so everything works through the frontend URL.
 
 ## Troubleshooting
 
-- If the backend logs show `Waiting for DB...` this is normal while MySQL initializes the database and applies the scripts; wait a minute and check logs again:
+### View Logs
 
+Check service logs in real-time:
+- All services: `docker-compose logs -f`
+- Specific service: `docker-compose logs -f [service]`
+  ```bash
+  docker-compose logs -f frontend  # Frontend/nginx logs
+  docker-compose logs -f backend   # Node.js API logs
+  docker-compose logs -f db        # MySQL logs
+  ```
+
+### Common Issues
+
+1. **Backend shows "Waiting for DB..."**
+   - Normal during startup while MySQL initializes
+   - Wait a minute and check logs again
+   - If persistent, verify DB credentials in `.env`
+
+2. **Frontend can't reach API**
+   - Check nginx proxy logs: `docker-compose logs frontend`
+   - Verify backend is running: `docker-compose ps`
+   - Test backend directly: `curl http://localhost:3000/users`
+
+3. **Database fails to start**
+   - Check MySQL logs for permission/initialization errors
+   - Verify DB_ variables in `.env`
+   - Try removing the volume and rebuilding:
+     ```bash
+     docker-compose down -v
+     docker-compose up --build
+     ```
+
+## Architecture Notes
+
+- **Local Builds**: All images are built locally on the VM—no container registry needed
+- **Frontend**: 
+  - Built with Vite during docker build
+  - Served by nginx on port 5173
+  - Uses same-origin requests for API calls
+  - Nginx proxies `/games`, `/locations`, `/users` to backend
+- **Backend**:
+  - Node.js/Express API on port 3000
+  - Waits for DB availability before starting
+  - Uses environment variables for configuration
+- **Database**:
+  - MySQL 8.0 with initialization scripts
+  - Data persisted in named volume `mysql-data`
+  - Auto-creates schema and tables on first run
+
+## Stopping Services
+
+Stop and remove containers while preserving data:
 ```bash
-docker-compose logs -f backend
-docker-compose logs -f db
+docker-compose down
 ```
 
-- If MySQL fails to start, inspect the DB logs for SQL errors or permission problems:
-
+Complete cleanup (including database volume):
 ```bash
-docker-compose logs db
+docker-compose down -v
 ```
-
-- Ensure `.env` is at the repository root (the backend code expects `../../../.env` from `src/server/model/db.js`).
-
-## Notes
-
-- The compose setup builds images locally, so you do not need a container registry. This works well for VMs where you control the repository and can run builds on the host.
-- For production deployments, consider pushing images to a registry and using a process manager or orchestration platform.
