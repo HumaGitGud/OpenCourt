@@ -12,8 +12,12 @@ services:
       MYSQL_DATABASE: ${DB_NAME:-opencourt}
       MYSQL_USER: ${DB_USER:-opencourt_user}
       MYSQL_PASSWORD: ${DB_PASSWORD:-password}
-    ports:
-      - "${DB_PORT:-3306}:3306"
+    # DB port is intentionally NOT published to the host to avoid conflicts
+    # and to keep the database reachable only from other containers.
+    # If you need to access MySQL from the host for debugging, uncomment
+    # the following lines or bind to localhost only (but avoid exposing it publicly):
+    # ports:
+    #   - "${DB_PORT:-3306}:3306"
     volumes:
       - mysql-data:/var/lib/mysql
       - ./src/database/create_tables.sql:/docker-entrypoint-initdb.d/01-create_tables.sql
