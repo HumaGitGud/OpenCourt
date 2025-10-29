@@ -29,13 +29,10 @@ services:
       dockerfile: Dockerfile
     image: opencourt-backend:local
     restart: always
+    env_file:
+      - ./src/server/.env
     environment:
       PORT: 3000
-      DB_HOST: db
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
-      DB_PORT: 3306
     ports:
       - "3000:3000"
     depends_on:
