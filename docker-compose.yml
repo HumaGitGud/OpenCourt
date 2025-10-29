@@ -33,6 +33,12 @@ services:
       - ./src/server/.env
     environment:
       PORT: 3000
+      # Database connection used by the backend (resolve to the 'db' service on the compose network)
+      DB_HOST: db
+      DB_USER: ${DB_USER:-opencourt_user}
+      DB_PASSWORD: ${DB_PASSWORD:-password}
+      DB_NAME: ${DB_NAME:-opencourt}
+      DB_PORT: ${DB_PORT:-3306}
     ports:
       - "3000:3000"
     depends_on:
