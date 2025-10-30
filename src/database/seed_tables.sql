@@ -1,4 +1,5 @@
-Use opencourt;
+-- Use the database created during initialization
+USE `opencourtDB`;
 
 INSERT INTO users (user_name) VALUES ("Augy"), ("Rebecca");
 INSERT INTO locations (location_name, address) VALUES ("Game Farm Park", "3030 R ST SE Auburn, WA 98002"), ("Les Gove Park", "910 9th ST SE Auburn, WA 98002");

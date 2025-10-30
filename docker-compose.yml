@@ -8,12 +8,16 @@ services:
     image: opencourt-db:local
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "${DB_PORT}:3306"
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-password}
+      MYSQL_DATABASE: ${DB_NAME:-opencourt}
+      MYSQL_USER: ${DB_USER:-opencourt_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-password}
+    # DB port is intentionally NOT published to the host to avoid conflicts
+    # and to keep the database reachable only from other containers.
+    # If you need to access MySQL from the host for debugging, uncomment
+    # the following lines or bind to localhost only (but avoid exposing it publicly):
+    # ports:
+    #   - "${DB_PORT:-3306}:3306"
     volumes:
       - mysql-data:/var/lib/mysql
       - ./src/database/create_tables.sql:/docker-entrypoint-initdb.d/01-create_tables.sql
@@ -25,13 +29,16 @@ services:
       dockerfile: Dockerfile
     image: opencourt-backend:local
     restart: always
+    env_file:
+      - ./src/server/.env
     environment:
       PORT: 3000
+      # Database connection used by the backend (resolve to the 'db' service on the compose network)
       DB_HOST: db
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
-      DB_PORT: 3306
+      DB_USER: ${DB_USER:-opencourt_user}
+      DB_PASSWORD: ${DB_PASSWORD:-password}
+      DB_NAME: ${DB_NAME:-opencourt}
+      DB_PORT: ${DB_PORT:-3306}
     ports:
       - "3000:3000"
     depends_on:
@@ -45,15 +52,10 @@ services:
       context: ./src/frontend/opencourt
       dockerfile: Dockerfile
       args:
-        - VITE_SERVER_HOST=backend
-        - VITE_SERVER_PORT=3000
-        - VITE_SERVER_BASE_URL=
+        VITE_SERVER_HOST: 165.232.143.210
+        VITE_SERVER_PORT: 3000
     image: opencourt-frontend:local
     restart: always
-    environment:
-      # Not strictly required at runtime because the built assets have the API host baked in
-      VITE_SERVER_HOST: backend
-      VITE_SERVER_PORT: 3000
     ports:
       - "5173:80"
     depends_on:
